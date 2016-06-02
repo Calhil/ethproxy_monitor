@@ -17,6 +17,9 @@ PID_FILE = 'eth-proxy/eth-proxy.pid'
 # location of a script starting the eth-proxy
 PROXY_SCRIPT_PATH = 'bin/ethproxy.sh'
 
+# number of allowed REJECTED messages in the past 10 minutes
+NUM_REJECTED = 2
+
 SLEEP_DURATION = 30  # [s]
 
 
@@ -66,6 +69,22 @@ def check_running(process_pid):
         return True
 
 
+def restart_proxy(pid):
+    # kill the proxy
+    print 'Killing pid {}'.format(pid)
+    os.kill(pid, signal.SIGTERM)
+
+    # empty the log file
+    print 'Emptying log file'
+    open(LOG_FILE, 'w').close()
+
+    # start the proxy
+    print 'Starting the proxy script {}'.format(PROXY_SCRIPT_PATH)
+    subprocess.call([PROXY_SCRIPT_PATH])
+    break
+
+
+
 if __name__ == "__main__":
 
     # check if files exist
@@ -76,6 +95,7 @@ if __name__ == "__main__":
     # run forever
     while True:
         log_contents, pid = None, None
+        n_rejected = 0
 
         if os.path.exists(PID_FILE):
             with open(PID_FILE, 'r') as pidfile:
@@ -89,18 +109,18 @@ if __name__ == "__main__":
             if 'Please restart proxy' in line:
                 print line
 
-                # kill the proxy
-                print 'Killing pid {}'.format(pid)
-                os.kill(pid, signal.SIGTERM)
+                restart_proxy(pid)
 
-                # empty the log file
-                print 'Emptying log file'
-                open(LOG_FILE, 'w').close()
+            # count the rejected shares and restart the proxy if the number exceeds a certain threshold
+            if 'REJECTED' in line:
+                n_rejected += 1
 
-                # start the proxy
-                print 'Starting the proxy script {}'.format(PROXY_SCRIPT_PATH)
-                subprocess.call([PROXY_SCRIPT_PATH])
-                break
+                print line
+
+                if n_rejected == NUM_REJECTED:
+                    restart_proxy(pid)
+                    n_rejected = 0
+
 
         # start proxy if its not running by some chance
         if pid is None or check_running(pid) is False:
