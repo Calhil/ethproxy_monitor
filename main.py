@@ -110,6 +110,7 @@ if __name__ == "__main__":
                 print line
 
                 restart_proxy(pid)
+                break
 
             # count the rejected shares and restart the proxy if the number exceeds a certain threshold
             if 'REJECTED' in line:
@@ -120,6 +121,7 @@ if __name__ == "__main__":
                 if n_rejected == NUM_REJECTED:
                     restart_proxy(pid)
                     n_rejected = 0
+                    break
 
 
         # start proxy if its not running by some chance
